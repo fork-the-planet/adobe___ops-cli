@@ -8,33 +8,30 @@
 # OF ANY KIND, either express or implied. See the License for the specific language
 # governing permissions and limitations under the License.
 
-import pkg_resources
 import re
-from distutils.version import StrictVersion
+from importlib.metadata import version as importlib_version
+from packaging.version import Version
 from subprocess import call, Popen, PIPE
-
-from six import PY3
 
 from .cli import display
 
 
 def validate_ops_version(min_ops_version):
-    current_ops_version = [
-        x.version for x in pkg_resources.working_set if x.project_name == "ops-cli"][0]
-    if StrictVersion(current_ops_version) < StrictVersion(min_ops_version):
+    current_ops_version = importlib_version('ops-cli')
+    if Version(current_ops_version) < Version(min_ops_version):
         raise Exception("The current ops version {0} is lower than the minimum required version {1}. "
                         "Please upgrade by following the instructions seen here: "
                         "https://github.com/adobe/ops-cli#installing".format(current_ops_version, min_ops_version))
 
 
-class Executor(object):
+class Executor:
     """ All cli commands usually return a dict(command=...) that will be executed by this handler"""
 
     def __call__(self, result, pass_trough=True, cwd=None):
         try:
             return self._execute(result, pass_trough, cwd)
         except Exception as ex:
-            display(str(ex) if PY3 else ex.message, stderr=True, color='red')
+            display(str(ex), stderr=True, color='red')
             display(
                 '------- TRACEBACK ----------',
                 stderr=True,

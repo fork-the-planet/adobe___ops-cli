@@ -8,11 +8,8 @@
 #OF ANY KIND, either express or implied. See the License for the specific language
 #governing permissions and limitations under the License.
 
-from __future__ import absolute_import
 import os
 from ops.cli import display
-from six import iteritems
-
 
 def read_file(fname):
     if os.path.exists(fname):
@@ -38,7 +35,7 @@ def read_consul(key_path, consul_url="http://localhost:8500", recurse=True, show
         ret = sc.get(key_path,recurse)
     except Exception as e:
         if show_error:
-            ret['error'] = e.message
+            ret['error'] = str(e)
     return ret
 
 def read_envvar(varname, default=None):
@@ -53,7 +50,7 @@ def read_yaml(fname, show_error=False):
         ret = y.safe_load(f.read())
     except Exception as e:
         if show_error:
-            ret['error'] = e.message
+            ret['error'] = str(e)
     return ret
 
 def flatten_tree(d, parent_key='', sep='/'):
@@ -100,7 +97,7 @@ def write_vault(
         namespace=None, mount_point=None, auto_prompt=auto_prompt)
     new_data = {}
     if isinstance(data, dict):
-        for k,v in iteritems(data):
+        for k, v in data.items():
             new_data[k] = str(v)
     elif key:
         new_data[key] = str(data)
@@ -141,7 +138,7 @@ def escape_json(input):
         return escaped[1:-1]
     return escaped
 
-class FilterModule(object):
+class FilterModule:
     
     def filters(self):
         return {

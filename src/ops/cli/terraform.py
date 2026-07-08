@@ -15,9 +15,7 @@ from ops.git_utils import checkout_repo, setup_repo
 from ops.cli.parser import SubParserConfig
 from ops.terraform.terraform_cmd_generator import TerraformCommandGenerator
 from ops.hierarchical.composition_config_generator import TerraformConfigGenerator
-from distutils.version import StrictVersion
 from ops import validate_ops_version
-import pkg_resources
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +151,7 @@ class TerraformParserConfig(SubParserConfig):
         '''
 
 
-class TerraformRunner(object):
+class TerraformRunner:
     def __init__(self, root_dir, cluster_config_path, cluster_config, inventory_generator, 
                  ops_config, template, execute):
         self.cluster_config_path = cluster_config_path

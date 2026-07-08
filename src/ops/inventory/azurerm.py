@@ -195,29 +195,22 @@ Version: 1.0.0
 '''
 
 import argparse
-from six.moves import configparser
+import configparser
 import json
 import os
 import re
 import sys
 
-from distutils.version import LooseVersion
-
 from os.path import expanduser
-
-from six import iteritems
 
 HAS_AZURE = True
 HAS_AZURE_EXC = None
 
 try:
-    from msrestazure.azure_exceptions import CloudError
-    from azure.mgmt.compute import __version__ as azure_compute_version
-    from azure.common import AzureMissingResourceHttpError, AzureHttpError
-    from azure.common.credentials import ServicePrincipalCredentials, UserPassCredentials
-    from azure.mgmt.network.network_management_client import NetworkManagementClient
-    from azure.mgmt.resource.resources.resource_management_client import ResourceManagementClient
-    from azure.mgmt.compute.compute_management_client import ComputeManagementClient
+    from azure.identity import ClientSecretCredential, UsernamePasswordCredential
+    from azure.mgmt.network import NetworkManagementClient
+    from azure.mgmt.resource.resources import ResourceManagementClient
+    from azure.mgmt.compute import ComputeManagementClient
 except ImportError as exc:
     HAS_AZURE_EXC = exc
     HAS_AZURE = False
@@ -244,9 +237,6 @@ AZURE_CONFIG_SETTINGS = dict(
     group_by_tag='AZURE_GROUP_BY_TAG'
 )
 
-AZURE_MIN_VERSION = "0.30.0rc5"
-
-
 def azure_id_to_dict(id):
     pieces = re.sub(r'^\/', '', id).split('/')
     result = {}
@@ -257,7 +247,7 @@ def azure_id_to_dict(id):
     return result
 
 
-class AzureRM(object):
+class AzureRM:
 
     def __init__(self, args):
         self._args = args
@@ -279,18 +269,25 @@ class AzureRM(object):
         self.log("setting subscription_id")
         self.subscription_id = self.credentials['subscription_id']
 
-        if self.credentials.get('client_id') is not None and \
-           self.credentials.get('secret') is not None and \
-           self.credentials.get('tenant') is not None:
-            self.azure_credentials = ServicePrincipalCredentials(client_id=self.credentials['client_id'],
-                                                                 secret=self.credentials['secret'],
-                                                                 tenant=self.credentials['tenant'])
+        if self.credentials.get('client_id') is None or self.credentials.get('tenant') is None:
+            self.fail("Failed to authenticate with provided credentials. "
+                      "client_id and tenant are required for all authentication methods.")
+
+        if self.credentials.get('secret') is not None:
+            self.azure_credentials = ClientSecretCredential(
+                tenant_id=self.credentials['tenant'],
+                client_id=self.credentials['client_id'],
+                client_secret=self.credentials['secret'])
         elif self.credentials.get('ad_user') is not None and self.credentials.get('password') is not None:
-            self.azure_credentials = UserPassCredentials(
-                self.credentials['ad_user'], self.credentials['password'])
+            self.azure_credentials = UsernamePasswordCredential(
+                client_id=self.credentials['client_id'],
+                username=self.credentials['ad_user'],
+                password=self.credentials['password'],
+                tenant_id=self.credentials['tenant'])
         else:
             self.fail("Failed to authenticate with provided credentials. Some attributes were missing. "
-                      "Credentials must include client_id, secret and tenant or ad_user and password.")
+                      "Credentials must include client_id, tenant and secret (service principal) "
+                      "or client_id, tenant, ad_user and password (user/password).")
 
     def log(self, msg):
         if self.debug:
@@ -323,7 +320,7 @@ class AzureRM(object):
 
     def _get_env_credentials(self):
         env_credentials = dict()
-        for attribute, env_variable in iteritems(AZURE_CREDENTIAL_ENV_MAPPING):
+        for attribute, env_variable in AZURE_CREDENTIAL_ENV_MAPPING.items():
             env_credentials[attribute] = os.environ.get(env_variable, None)
 
         if env_credentials['profile'] is not None:
@@ -343,7 +340,7 @@ class AzureRM(object):
         self.log('Getting credentials')
 
         arg_credentials = dict()
-        for attribute, env_variable in iteritems(AZURE_CREDENTIAL_ENV_MAPPING):
+        for attribute, env_variable in AZURE_CREDENTIAL_ENV_MAPPING.items():
             arg_credentials[attribute] = getattr(params, attribute)
 
         # try module params
@@ -408,7 +405,7 @@ class AzureRM(object):
         return self._compute_client
 
 
-class AzureInventory(object):
+class AzureInventory:
 
     def __init__(self):
 
@@ -694,7 +691,7 @@ class AzureInventory(object):
         self._inventory['azure'].append(host_name)
 
         if self.group_by_tag and vars.get('tags'):
-            for key, value in iteritems(vars['tags']):
+            for key, value in vars['tags'].items():
                 safe_key = self._to_safe(key)
                 safe_value = self._to_safe(value)
                 if not self._inventory.get(safe_key):
@@ -756,7 +753,7 @@ class AzureInventory(object):
 
     def _get_env_settings(self):
         env_settings = dict()
-        for attribute, env_variable in iteritems(AZURE_CONFIG_SETTINGS):
+        for attribute, env_variable in AZURE_CONFIG_SETTINGS.items():
             env_settings[attribute] = os.environ.get(env_variable, None)
         return env_settings
 
@@ -773,7 +770,7 @@ class AzureInventory(object):
         config = None
         settings = None
         try:
-            config = ConfigParser.ConfigParser()
+            config = configparser.ConfigParser()
             config.read(path)
         except BaseException:
             pass
@@ -820,20 +817,3 @@ class AzureInventory(object):
         if not self.replace_dash_in_groups:
             regex += r"\-"
         return re.sub(regex + "]", "_", word)
-
-
-def main():
-    if not HAS_AZURE:
-        sys.exit(
-            "The Azure python sdk is not installed "
-            "(try 'pip install azure==2.0.0rc5') - {0}".format(HAS_AZURE_EXC))
-
-    if LooseVersion(azure_compute_version) != LooseVersion(AZURE_MIN_VERSION):
-        sys.exit("Expecting azure.mgmt.compute.__version__ to be {0}. Found version {1} "
-                 "Do you have Azure == 2.0.0rc5 installed?".format(AZURE_MIN_VERSION, azure_compute_version))
-
-    AzureInventory()
-
-
-if __name__ == '__main__':
-    main()

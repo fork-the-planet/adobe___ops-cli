@@ -11,7 +11,7 @@
 import os
 import tempfile
 import uuid
-from distutils.dir_util import copy_tree
+import shutil
 
 import ansible.inventory as ansible_inventory
 import ansible.vars as ansible_vars
@@ -27,7 +27,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class CachedInventoryGenerator(object):
+class CachedInventoryGenerator:
     def __init__(self, base_inventory_generator, cluster_config, ops_config):
         self.inventory_generator = base_inventory_generator
         self.ops_config = ops_config
@@ -109,7 +109,7 @@ class CachedInventoryGenerator(object):
             inventory_path, ssh_config_path, self.inventory_generator.errors)
 
 
-class InventoryGenerator(object):
+class InventoryGenerator:
     def __init__(self, cluster_config, ssh_config_generator,
                  ops_config, inventory_generators=[]):
         self.ssh_config_generator = ssh_config_generator
@@ -188,7 +188,7 @@ class InventoryGenerator(object):
                 color='yellow')
 
 
-class DirInventoryGenerator(object):
+class DirInventoryGenerator:
     """ Just copies the full path specified in path into the inventory dir """
 
     def __init__(self, root_dir):
@@ -198,10 +198,10 @@ class DirInventoryGenerator(object):
         return config.get('directory') is not None
 
     def generate(self, dest, config):
-        copy_tree(self.root_dir + '/' + config['directory'], dest)
+        shutil.copytree(self.root_dir + '/' + config['directory'], dest, dirs_exist_ok=True)
 
 
-class PluginInventoryGenerator(object):
+class PluginInventoryGenerator:
     template = """#!/usr/bin/env python
 # CONFIG: {config}
 # PLUGIN PATH: {plugin_path}
@@ -236,7 +236,7 @@ print(\"\"\"
             os.fchmod(f.fileno(), 0o500)
 
 
-class ShellInventoryGenerator(object):
+class ShellInventoryGenerator:
     """
     Creates a script to be executed by Ansible inventory mechanism and places it in
     the temp directory
@@ -289,7 +289,7 @@ fi
             os.fchmod(f.fileno(), 0o500)
 
 
-class AnsibleInventory(object):
+class AnsibleInventory:
 
     def __init__(self, inventory_generator):
         """

@@ -10,12 +10,8 @@
 
 import argparse
 
-import sys
 
-from six import PY3
-
-
-class RootParser(object):
+class RootParser:
     def __init__(self, sub_parsers=None):
         """
         :type sub_parsers: list[SubParserConfig]
@@ -52,35 +48,14 @@ class RootParser(object):
 
         return parser
 
-    @staticmethod
-    def _check_args_for_unicode(args):
-        if args is None:
-            args = sys.argv
-
-        try:
-            for value in args:
-                if not PY3 and isinstance(value, unicode):
-                    # Python3 or some Python3 compatibility mode can make
-                    # arguments to be unicode, not str
-                    value.encode('utf-8').encode('utf-8')
-                # Python 2 str, check if it can be represented in utf8
-                elif isinstance(value, str):
-                    value.encode('utf-8')
-        except UnicodeDecodeError as e:
-            print('Invalid character in argument "{0}", most likely an "en dash", replace it with normal dash -'.format(
-                e.args[1]))
-            raise
-
     def parse_args(self, args=None):
-        RootParser._check_args_for_unicode(args)
         return self._get_parser().parse_args(args)
 
     def parse_known_args(self, args=None):
-        RootParser._check_args_for_unicode(args)
         return self._get_parser().parse_known_args(args)
 
 
-class SubParserConfig(object):
+class SubParserConfig:
     def get_name(self):
         pass
 

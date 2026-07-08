@@ -24,12 +24,12 @@ import os
 import hvac
 import getpass
 from .cli import display
-from six import iteritems, string_types
+
 
 MAX_LDAP_ATTEMPTS = 3
 
 
-class SimpleVault(object):
+class SimpleVault:
     p_vault_conn = None
     # persistent vault connection
 
@@ -219,10 +219,10 @@ class SimpleVault(object):
 
     def put(self, path, value, lease=None, wrap_ttl=None):
         payload = {}
-        if isinstance(value, (string_types, int, float, bool)):
+        if isinstance(value, (str, int, float, bool)):
             payload['value'] = str(value)
         elif isinstance(value, dict):
-            for k, v in iteritems(value):
+            for k, v in value.items():
                 payload[k] = str(v)
         else:
             raise Exception('Unsupported data type for secret payload')
@@ -233,7 +233,7 @@ class SimpleVault(object):
         return self.vault_conn.is_authenticated()
 
 
-class ManagedVaultSecret(object):
+class ManagedVaultSecret:
     p_sv = None
     # Persistent SimpleVault accessory object
 
@@ -274,14 +274,14 @@ class ManagedVaultSecret(object):
             except Exception as e:
                 display(
                     'MANAGED-SECRET: could not obtain a proper'
-                    ' Vault connection.\n{}'.format(e.message)
+                    ' Vault connection.\n{}'.format(str(e))
                 )
                 raise e
         try:
             self.current_data = self.sv.get(path=path, fetch_all=True)
         except Exception as e:
             display('MANAGED-SECRET: could not confirm if secret at path {} does or not already exist. '
-                    'Exception was:\n{}'.format(path, e.message))
+                    'Exception was:\n{}'.format(path, str(e)))
             raise e
         if self.current_data.get(key):
             # something exists on that path, we assume the secret already
